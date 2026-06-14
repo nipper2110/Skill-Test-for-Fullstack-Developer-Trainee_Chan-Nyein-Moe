@@ -1,0 +1,92 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  OVERDUE
+  REVIEWING
+  COMPLETED
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+enum InviteRole {
+  Member
+  Admin
+}
+
+model User {
+  id          String   @id @default(cuid())
+  email       String   @unique
+  password    String
+  fullName    String
+  title       String?
+  initials    String?
+  avatarColor String   @default("bg-gray-400")
+  avatarUrl   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  categories           Category[]
+  tasksCreated         Task[]           @relation("TaskCreator")
+  tasksAssigned        Task[]           @relation("TaskAssignee")
+  invitationsSent      TaskInvitation[] @relation("Inviter")
+  invitationsReceived  TaskInvitation[] @relation("Invitee")
+}
+
+model Category {
+  id          String   @id @default(cuid())
+  name        String
+  description String
+  icon        String   @default("palette")
+  color       String   @default("dark-blue")
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tasks       Task[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Task {
+  id           String     @id @default(cuid())
+  taskName     String
+  description  String?
+  status       TaskStatus @default(IN_PROGRESS)
+  dueDate      DateTime
+  tags         String[]
+  categoryId   String
+  category     Category   @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  assignedToId String?
+  assignedTo   User?      @relation("TaskAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  createdById  String
+  createdBy    User       @relation("TaskCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  invitations  TaskInvitation[]
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
+
+model TaskInvitation {
+  id        String           @id @default(cuid())
+  taskId    String
+  task      Task             @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  inviterId String
+  inviter   User             @relation("Inviter", fields: [inviterId], references: [id], onDelete: Cascade)
+  inviteeId String
+  invitee   User             @relation("Invitee", fields: [inviteeId], references: [id], onDelete: Cascade)
+  role      InviteRole       @default(Member)
+  status    InvitationStatus @default(PENDING)
+  createdAt DateTime         @default(now())
+
+  @@unique([taskId, inviteeId])
+}
