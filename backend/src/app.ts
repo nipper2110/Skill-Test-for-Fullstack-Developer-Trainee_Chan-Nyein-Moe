@@ -13,7 +13,7 @@ const app = express();
 app.use(
   cors({
     origin: [
-      process.env.FRONTEND_URL ?? "http://localhost:5173",
+      "https://taskflow-frontend-bxpd.onrender.com", // Render URL
       "http://localhost:5173",
       "http://localhost:5174",
     ],
