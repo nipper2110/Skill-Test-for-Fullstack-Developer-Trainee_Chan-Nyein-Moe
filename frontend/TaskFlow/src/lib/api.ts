@@ -163,6 +163,8 @@ export const api = {
         method: "PUT",
         body: JSON.stringify(data),
       }),
+    delete: () =>
+      request<{ message: string }>("/profile", { method: "DELETE" }),
   },
 };
 

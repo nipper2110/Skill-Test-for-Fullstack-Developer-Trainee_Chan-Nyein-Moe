@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Pencil } from "lucide-react";
@@ -9,14 +10,17 @@ const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/gif"];
 const MAX_AVATAR_SIZE = 800 * 1024;
 
 function ProfileSetting() {
-  const { user, refreshUser } = useAuth();
+  const { user, refreshUser, logout } = useAuth();
+  const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [fullName, setFullName] = useState("");
   const [title, setTitle] = useState("");
   const [email, setEmail] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
   const [photoError, setPhotoError] = useState("");
 
   useEffect(() => {
@@ -36,15 +40,41 @@ function ProfileSetting() {
   const handleSave = async () => {
     setIsSubmitting(true);
     setMessage("");
+    setError("");
     setPhotoError("");
     try {
       await api.profile.update({ fullName, title, email });
       await refreshUser();
       setMessage("Profile updated successfully.");
     } catch {
-      setMessage("Failed to update profile.");
+      setError("Failed to update profile.");
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    const confirmed = confirm(
+      "Are you sure you want to delete your account? This action cannot be undone.",
+    );
+    if (!confirmed) return;
+
+    setIsDeleting(true);
+    setMessage("");
+    setError("");
+
+    try {
+      await api.profile.delete();
+      logout();
+      navigate("/login");
+    } catch (err) {
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : "Failed to delete account. Please try again.",
+      );
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -150,6 +180,11 @@ function ProfileSetting() {
               {message}
             </p>
           )}
+          {error && (
+            <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+              {error}
+            </p>
+          )}
 
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
             <div className="space-y-2">
@@ -193,10 +228,27 @@ function ProfileSetting() {
         <div className="flex items-center justify-end gap-6 border-t border-gray-100 pt-8">
           <Button
             onClick={handleSave}
-            disabled={isSubmitting}
+            disabled={isSubmitting || isDeleting}
             className="h-11 rounded-lg bg-[#0b2aa0] px-6 text-sm font-semibold text-white hover:bg-[#071d70]"
           >
             {isSubmitting ? "Saving..." : "Save Changes"}
+          </Button>
+        </div>
+
+        <div className="mt-8 rounded-xl border border-red-100 bg-red-50/50 p-6">
+          <h3 className="text-base font-bold text-gray-900">Delete account</h3>
+          <p className="mt-2 text-sm text-gray-600">
+            Permanently remove your account and all associated data. This action
+            cannot be undone.
+          </p>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleDeleteAccount}
+            disabled={isDeleting || isSubmitting}
+            className="mt-4 border-red-200 bg-white text-red-600 hover:bg-red-50 hover:text-red-700"
+          >
+            {isDeleting ? "Deleting..." : "Delete Account"}
           </Button>
         </div>
       </div>

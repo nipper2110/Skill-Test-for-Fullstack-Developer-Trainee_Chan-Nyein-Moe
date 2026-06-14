@@ -62,4 +62,21 @@ router.put("/", async (req: AuthRequest, res, next) => {
   }
 });
 
+router.delete("/", async (req: AuthRequest, res, next) => {
+  try {
+    const user = await prisma.user.findUnique({ where: { id: req.userId } });
+
+    if (!user) {
+      res.status(404).json({ message: "User not found" });
+      return;
+    }
+
+    await prisma.user.delete({ where: { id: req.userId } });
+
+    res.json({ message: "Account deleted successfully." });
+  } catch (error) {
+    next(error);
+  }
+});
+
 export default router;
