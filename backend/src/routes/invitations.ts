@@ -99,8 +99,13 @@ inviteRouter.use(authMiddleware);
 
 inviteRouter.get("/search", async (req: AuthRequest, res, next) => {
   try {
-    const q = (req.query.q as string) ?? "";
+    const q = (req.query.q as string)?.trim() ?? "";
     const taskId = req.query.taskId as string | undefined;
+
+    if (!q) {
+      res.json([]);
+      return;
+    }
 
     const invitedUsers = new Map<
       string,
@@ -129,11 +134,11 @@ inviteRouter.get("/search", async (req: AuthRequest, res, next) => {
       where: {
         id: { not: req.userId },
         OR: [
-          { fullName: { contains: q, mode: "insensitive" } },
-          { email: { contains: q, mode: "insensitive" } },
+          { email: { equals: q, mode: "insensitive" } },
+          { fullName: { equals: q, mode: "insensitive" } },
         ],
       },
-      take: 10,
+      take: 1,
     });
 
     res.json(

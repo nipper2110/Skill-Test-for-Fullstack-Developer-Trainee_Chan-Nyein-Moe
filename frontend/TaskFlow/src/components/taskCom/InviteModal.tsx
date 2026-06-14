@@ -22,27 +22,45 @@ function InviteModal({ isOpen, onClose, task }: InviteModalProps) {
   const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
   const [selectedRoles, setSelectedRoles] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
 
   useEffect(() => {
     if (!isOpen || !task) return;
 
     setSearchQuery("");
+    setMembers([]);
     setSelectedMemberIds([]);
     setSelectedRoles({});
-    api.users.search("", task.id).then(setMembers).catch(console.error);
+    setHasSearched(false);
+    setIsSearching(false);
   }, [isOpen, task]);
 
-  useEffect(() => {
-    if (!isOpen || !task) return;
-
-    const timeoutId = window.setTimeout(() => {
-      api.users.search(searchQuery, task.id).then(setMembers).catch(console.error);
-    }, 250);
-
-    return () => window.clearTimeout(timeoutId);
-  }, [isOpen, searchQuery, task]);
-
   if (!isOpen || !task) return null;
+
+  const handleSearch = async () => {
+    const query = searchQuery.trim();
+    if (!query) {
+      setMembers([]);
+      setHasSearched(false);
+      return;
+    }
+
+    setIsSearching(true);
+    setHasSearched(true);
+    setSelectedMemberIds([]);
+    setSelectedRoles({});
+
+    try {
+      const results = await api.users.search(query, task.id);
+      setMembers(results);
+    } catch (error) {
+      console.error(error);
+      setMembers([]);
+    } finally {
+      setIsSearching(false);
+    }
+  };
 
   const toggleMemberSelection = (member: TeamMember) => {
     if (member.invitationStatus) return;
@@ -110,13 +128,38 @@ function InviteModal({ isOpen, onClose, task }: InviteModalProps) {
           <label className="mb-2 block text-sm font-semibold text-gray-900">
             Find team members
           </label>
-          <Input
-            type="text"
-            placeholder="Find team members by name or email"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full"
-          />
+          <div className="flex gap-2">
+            <Input
+              type="text"
+              placeholder="Enter full email or full name"
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setHasSearched(false);
+                setMembers([]);
+                setSelectedMemberIds([]);
+                setSelectedRoles({});
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  handleSearch();
+                }
+              }}
+              className="w-full"
+            />
+            <Button
+              type="button"
+              onClick={handleSearch}
+              disabled={!searchQuery.trim() || isSearching}
+              className="shrink-0 bg-blue-900 text-white hover:bg-blue-800"
+            >
+              {isSearching ? "..." : "Search"}
+            </Button>
+          </div>
+          <p className="mt-2 text-xs text-gray-500">
+            Type the exact full email or full name, then press Search.
+          </p>
         </div>
 
         <div className="mb-6">
@@ -132,8 +175,16 @@ function InviteModal({ isOpen, onClose, task }: InviteModalProps) {
           </div>
 
           <div className="max-h-64 space-y-3 overflow-y-auto">
-            {members.length === 0 ? (
-              <p className="text-sm text-gray-500">No members found.</p>
+            {!hasSearched ? (
+              <p className="text-sm text-gray-500">
+                Enter the exact full email or full name to find a team member.
+              </p>
+            ) : isSearching ? (
+              <p className="text-sm text-gray-500">Searching...</p>
+            ) : members.length === 0 ? (
+              <p className="text-sm text-gray-500">
+                No user found. Check the full email or full name and try again.
+              </p>
             ) : (
               members.map((member) => {
                 const isSelected = selectedMemberIds.includes(member.id);
